@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Subscribers\Models\Subscriber;
 use App\Models\User;
 
 return [
@@ -42,6 +43,16 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'staff' => [
+            'driver' => 'session',
+            'provider' => 'staff',
+        ],
+
+        'subscriber' => [
+            'driver' => 'session',
+            'provider' => 'subscribers',
+        ],
     ],
 
     /*
@@ -71,6 +82,16 @@ return [
         //     'driver' => 'database',
         //     'table' => 'users',
         // ],
+
+        'staff' => [
+            'driver' => 'eloquent',
+            'model' => User::class,
+        ],
+
+        'subscribers' => [
+            'driver' => 'eloquent',
+            'model' => Subscriber::class,
+        ],
     ],
 
     /*

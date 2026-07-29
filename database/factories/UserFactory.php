@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Domain\Staff\Enums\StaffRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -25,10 +26,13 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'tenant_id' => 1,
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => fake()->randomElement(StaffRole::cases()),
+            'last_active_at' => fake()->dateTimeBetween('-2 weeks', 'now'),
             'remember_token' => Str::random(10),
         ];
     }
