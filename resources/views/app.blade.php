@@ -10,9 +10,9 @@
         @fonts
 
         @viteReactRefresh
-        @vite(['resources/css/app.css', 'resources/js/landing.tsx'])
+        @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     </head>
     <body>
-        <div id="landing-root"></div>
+        <div id="app-root"></div>
     </body>
 </html>

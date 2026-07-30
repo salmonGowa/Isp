@@ -3,6 +3,9 @@
 namespace App\Domain\Subscribers\Models;
 
 use App\Domain\Billing\Models\Invoice;
+use App\Domain\Network\Models\ConnectedDevice;
+use App\Domain\Network\Models\DailyUsage;
+use App\Domain\Network\Models\WifiNetwork;
 use App\Domain\Plans\Models\Plan;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use App\Domain\Subscribers\Enums\SubscriberStatus;
@@ -15,6 +18,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -66,5 +70,20 @@ class Subscriber extends Authenticatable
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function dailyUsages(): HasMany
+    {
+        return $this->hasMany(DailyUsage::class);
+    }
+
+    public function wifiNetwork(): HasOne
+    {
+        return $this->hasOne(WifiNetwork::class);
+    }
+
+    public function connectedDevices(): HasMany
+    {
+        return $this->hasMany(ConnectedDevice::class);
     }
 }

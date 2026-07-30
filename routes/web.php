@@ -3,7 +3,11 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('landing');
+    return view('app');
+});
+
+Route::get('/contact', function () {
+    return view('app');
 });
 
 Route::get('/admin', function () {
