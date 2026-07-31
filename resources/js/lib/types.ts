@@ -161,3 +161,27 @@ export interface UsageData {
   daily: { date: string; download_gb: number; upload_gb: number }[];
   stats: { average_daily_gb: number; peak_daily_gb: number; projected_total_gb: number };
 }
+
+export interface HotspotPlan {
+  id: number;
+  name: string;
+  duration_minutes: number;
+  price: number;
+  status: "active" | "archived";
+  sessions_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HotspotSession {
+  id: number;
+  mac_address: string;
+  plan: { id: number; name: string } | null;
+  amount_paid: number;
+  payment_reference: string | null;
+  status: "active" | "expired" | "revoked";
+  starts_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+}

@@ -17,3 +17,7 @@ Route::get('/admin', function () {
 Route::get('/portal', function () {
     return view('portal');
 });
+
+Route::get('/hotspot', function () {
+    return view('hotspot');
+});

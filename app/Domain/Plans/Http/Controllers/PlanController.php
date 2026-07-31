@@ -2,6 +2,7 @@
 
 namespace App\Domain\Plans\Http\Controllers;
 
+use App\Domain\Plans\Enums\PlanStatus;
 use App\Domain\Plans\Http\Requests\StorePlanRequest;
 use App\Domain\Plans\Http\Requests\UpdatePlanRequest;
 use App\Domain\Plans\Http\Resources\PlanResource;
@@ -24,7 +25,10 @@ class PlanController extends Controller
 
     public function store(StorePlanRequest $request)
     {
-        $plan = Plan::create($request->validated());
+        $plan = Plan::create([
+            ...$request->validated(),
+            'status' => $request->validated('status') ?? PlanStatus::Active,
+        ]);
 
         return new PlanResource($plan->loadCount('subscribers'));
     }

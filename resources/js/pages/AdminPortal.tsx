@@ -3,7 +3,7 @@ import {
   Zap, Users, CreditCard, Router, MessageSquare, Wrench, Package, BarChart3,
   ShieldCheck, Bell, Search, ChevronRight, Plus, X, CheckCircle2, AlertTriangle,
   Activity, Signal, MapPin, Download, Play, Ban, UserPlus,
-  Trash2, Server, Cable, Radio,
+  Trash2, Server, Cable, Radio, Wifi,
   ClipboardList, LogOut, Home, DollarSign, FileWarning, Menu, Loader2, RefreshCcw,
 } from "lucide-react";
 import {
@@ -49,6 +49,7 @@ const NAV = [
   { key: "tickets", label: "Support queue", icon: MessageSquare },
   { key: "fieldops", label: "Field ops", icon: Wrench },
   { key: "plans", label: "Plans", icon: Package },
+  { key: "hotspot", label: "Hotspot", icon: Wifi },
   { key: "reports", label: "Reports", icon: BarChart3 },
   { key: "staff", label: "Staff & access", icon: ShieldCheck, adminOnly: true },
 ];
@@ -62,8 +63,8 @@ const STATUS_TONE: Record<string, Tone> = {
   active: "success", online: "success", paid: "success", completed: "success", resolved: "success", available: "success",
   scheduled: "info", "in-progress": "info",
   open: "warning", degraded: "warning", due: "warning", "on-job": "warning",
-  suspended: "neutral", "off-duty": "neutral", archived: "neutral", cancelled: "neutral",
-  overdue: "danger", offline: "danger",
+  suspended: "neutral", "off-duty": "neutral", archived: "neutral", cancelled: "neutral", expired: "neutral",
+  overdue: "danger", offline: "danger", revoked: "danger",
 };
 
 const PRIORITY_TONE: Record<string, Tone> = {
@@ -75,6 +76,7 @@ const STATUS_LABEL: Record<string, string> = {
   available: "Available", scheduled: "Scheduled", "in-progress": "In progress", open: "Open",
   degraded: "Degraded", due: "Due", "on-job": "On job", suspended: "Suspended", "off-duty": "Off duty",
   archived: "Archived", overdue: "Overdue", offline: "Offline", cancelled: "Cancelled",
+  expired: "Expired", revoked: "Revoked",
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -935,6 +937,192 @@ function PlansAdmin() {
   );
 }
 
+function HotspotAdmin() {
+  const { data: plansData, loading: plansLoading, error: plansError, reload: reloadPlans } = useApiResource(() => staffApi.hotspotPlans.list(), []);
+  const { data: sessionsData, loading: sessionsLoading, error: sessionsError, reload: reloadSessions } = useApiResource(() => staffApi.hotspotSessions.list(), []);
+  const plans = plansData?.data ?? [];
+  const sessions = sessionsData?.data ?? [];
+
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planFormError, setPlanFormError] = useState<string | null>(null);
+  const [planFormData, setPlanFormData] = useState({ name: "", duration_minutes: "", price: "" });
+
+  const [grantOpen, setGrantOpen] = useState(false);
+  const [grantSaving, setGrantSaving] = useState(false);
+  const [grantFormError, setGrantFormError] = useState<string | null>(null);
+  const [grantFormData, setGrantFormData] = useState({ mac_address: "", hotspot_plan_id: "", payment_reference: "" });
+
+  const submitPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPlanFormError(null);
+    setPlanSaving(true);
+    try {
+      await staffApi.hotspotPlans.create({
+        name: planFormData.name,
+        duration_minutes: parseInt(planFormData.duration_minutes, 10),
+        price: parseFloat(planFormData.price),
+      });
+      setPlanOpen(false);
+      setPlanFormData({ name: "", duration_minutes: "", price: "" });
+      reloadPlans();
+    } catch (err) {
+      setPlanFormError(err instanceof ApiError ? err.message : "Couldn't create the pass.");
+    } finally {
+      setPlanSaving(false);
+    }
+  };
+
+  const archivePlan = async (id: number) => {
+    await staffApi.hotspotPlans.update(id, { status: "archived" });
+    reloadPlans();
+  };
+
+  const submitGrant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGrantFormError(null);
+    setGrantSaving(true);
+    try {
+      await staffApi.hotspotSessions.create({
+        mac_address: grantFormData.mac_address,
+        hotspot_plan_id: parseInt(grantFormData.hotspot_plan_id, 10),
+        payment_reference: grantFormData.payment_reference || undefined,
+      });
+      setGrantOpen(false);
+      setGrantFormData({ mac_address: "", hotspot_plan_id: "", payment_reference: "" });
+      reloadSessions();
+    } catch (err) {
+      setGrantFormError(err instanceof ApiError ? err.message : "Couldn't grant the session.");
+    } finally {
+      setGrantSaving(false);
+    }
+  };
+
+  const revoke = async (id: number) => {
+    await staffApi.hotspotSessions.revoke(id);
+    reloadSessions();
+  };
+
+  const activeCount = sessions.filter((s) => s.status === "active").length;
+  const todayRevenue = sessions
+    .filter((s) => new Date(s.created_at).toDateString() === new Date().toDateString())
+    .reduce((sum, s) => sum + s.amount_paid, 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <Eyebrow>Active devices</Eyebrow>
+          <div className="mt-1.5 text-xl font-bold text-slate-900 dark:text-slate-100">{sessionsLoading ? "—" : fmtInt(activeCount)}</div>
+        </Card>
+        <Card>
+          <Eyebrow>Revenue today</Eyebrow>
+          <div className="mt-1.5 text-xl font-bold text-slate-900 dark:text-slate-100">{sessionsLoading ? "—" : fmtUSD(todayRevenue)}</div>
+        </Card>
+        <Card>
+          <Eyebrow>Total passes sold</Eyebrow>
+          <div className="mt-1.5 text-xl font-bold text-slate-900 dark:text-slate-100">{sessionsLoading ? "—" : fmtInt(sessions.length)}</div>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHead
+          eyebrow="Passes"
+          action={<PrimaryButton size="sm" onClick={() => setPlanOpen(true)}><Plus size={14} /> New pass</PrimaryButton>}
+        />
+        {plansError && !plansLoading && <ErrorBlock message={plansError} onRetry={reloadPlans} />}
+        {plansLoading && <LoadingBlock />}
+        {!plansLoading && !plansError && (
+          <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+            {plans.map((p) => (
+              <Card key={p.id} className="flex flex-col">
+                <CardHead
+                  title={<div className="text-base font-bold text-slate-900 dark:text-slate-100">{p.name}</div>}
+                  action={<StatusBadge status={p.status} />}
+                />
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">{p.duration_minutes} min</div>
+                <div className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">{fmtUSD(p.price)}</div>
+                <div className="text-[13px] text-slate-600 dark:text-slate-300">{fmtInt(p.sessions_count ?? 0)} sold</div>
+                {p.status === "active" && (
+                  <ModalActions>
+                    <GhostButton size="sm" onClick={() => archivePlan(p.id)}><Trash2 size={14} /> Archive</GhostButton>
+                  </ModalActions>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <CardHead
+          eyebrow="Active sessions"
+          action={<GhostButton size="sm" onClick={() => setGrantOpen(true)}><UserPlus size={14} /> Grant session</GhostButton>}
+        />
+        {sessionsError && !sessionsLoading && <ErrorBlock message={sessionsError} onRetry={reloadSessions} />}
+        {sessionsLoading && <LoadingBlock />}
+        {!sessionsLoading && !sessionsError && (
+          <div className="mt-2 overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-[1.2fr_1fr_0.9fr_1.1fr_0.9fr_0.7fr] gap-2.5 px-2.5 py-2 text-[10.5px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                <div>MAC address</div><div>Pass</div><div>Amount</div><div>Expires</div><div>Status</div><div></div>
+              </div>
+              {sessions.slice(0, 50).map((s) => (
+                <div className="grid grid-cols-[1.2fr_1fr_0.9fr_1.1fr_0.9fr_0.7fr] items-center gap-2.5 border-t border-slate-100 px-2.5 py-2.5 text-[12.5px] dark:border-slate-800" key={s.id}>
+                  <div className="font-mono text-slate-800 dark:text-slate-100">{s.mac_address}</div>
+                  <div className="text-slate-600 dark:text-slate-300">{s.plan?.name ?? "—"}</div>
+                  <div className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{fmtUSD(s.amount_paid)}</div>
+                  <div className="text-slate-600 dark:text-slate-300">{new Date(s.expires_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                  <StatusBadge status={s.status} />
+                  <div>
+                    {s.status === "active" && <GhostButton size="xs" onClick={() => revoke(s.id)}><Ban size={12} /> Revoke</GhostButton>}
+                  </div>
+                </div>
+              ))}
+              {sessions.length === 0 && <div className="p-6 text-center text-[12.5px] text-slate-500 dark:text-slate-400">No sessions yet.</div>}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Modal open={planOpen} onClose={() => setPlanOpen(false)} title="Create hotspot pass">
+        <form onSubmit={submitPlan}>
+          {planFormError && <div className="mb-2 rounded-lg bg-rose-50 p-2.5 text-xs font-medium text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{planFormError}</div>}
+          <FieldLabel>Pass name</FieldLabel>
+          <FieldInput required value={planFormData.name} onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })} placeholder="e.g. 6 Hours" />
+          <FieldLabel>Duration (minutes)</FieldLabel>
+          <FieldInput required type="number" value={planFormData.duration_minutes} onChange={(e) => setPlanFormData({ ...planFormData, duration_minutes: e.target.value })} placeholder="360" />
+          <FieldLabel>Price (USD)</FieldLabel>
+          <FieldInput required type="number" step="0.01" value={planFormData.price} onChange={(e) => setPlanFormData({ ...planFormData, price: e.target.value })} placeholder="2.00" />
+          <PrimaryButton type="submit" disabled={planSaving} className="mt-3.5 w-full">
+            {planSaving ? <Loader2 size={14} className="animate-spin" /> : "Create pass"}
+          </PrimaryButton>
+        </form>
+      </Modal>
+
+      <Modal open={grantOpen} onClose={() => setGrantOpen(false)} title="Grant a session manually">
+        <form onSubmit={submitGrant}>
+          {grantFormError && <div className="mb-2 rounded-lg bg-rose-50 p-2.5 text-xs font-medium text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{grantFormError}</div>}
+          <FieldLabel>Device MAC address</FieldLabel>
+          <FieldInput required value={grantFormData.mac_address} onChange={(e) => setGrantFormData({ ...grantFormData, mac_address: e.target.value })} placeholder="AA:BB:CC:DD:EE:FF" />
+          <FieldLabel>Pass</FieldLabel>
+          <FieldSelect required value={grantFormData.hotspot_plan_id} onChange={(e) => setGrantFormData({ ...grantFormData, hotspot_plan_id: e.target.value })}>
+            <option value="">Select a pass…</option>
+            {plans.filter((p) => p.status === "active").map((p) => (
+              <option key={p.id} value={p.id}>{p.name} — {fmtUSD(p.price)}</option>
+            ))}
+          </FieldSelect>
+          <FieldLabel>Reference (optional)</FieldLabel>
+          <FieldInput value={grantFormData.payment_reference} onChange={(e) => setGrantFormData({ ...grantFormData, payment_reference: e.target.value })} placeholder="Comp, walk-in, etc." />
+          <PrimaryButton type="submit" disabled={grantSaving} className="mt-3.5 w-full">
+            {grantSaving ? <Loader2 size={14} className="animate-spin" /> : "Grant session"}
+          </PrimaryButton>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
 /* ============================== REPORTS ============================== */
 
 function ReportsAdmin({ palette }: { palette: ReturnType<typeof chartPalette> }) {
@@ -1177,6 +1365,7 @@ function AdminConsole({ user, logout }: { user: StaffUser; logout: () => Promise
           {tab === "tickets" && <TicketsAdmin />}
           {tab === "fieldops" && <FieldOps />}
           {tab === "plans" && <PlansAdmin />}
+          {tab === "hotspot" && <HotspotAdmin />}
           {tab === "reports" && <ReportsAdmin palette={palette} />}
           {tab === "staff" && user?.role === "admin" && <StaffAdmin />}
         </main>

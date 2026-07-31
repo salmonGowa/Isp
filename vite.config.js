@@ -12,6 +12,7 @@ export default defineConfig({
                 'resources/js/app.tsx',
                 'resources/js/admin.tsx',
                 'resources/js/portal.tsx',
+                'resources/js/hotspot.tsx',
             ],
             refresh: true,
             fonts: [

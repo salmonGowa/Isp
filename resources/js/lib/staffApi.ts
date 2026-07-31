@@ -1,6 +1,6 @@
 import { apiFetch, qs, type Collection, type Paginated } from "./api";
 import type {
-  DashboardData, Invoice, NetworkNode, Payment, Plan, ReportsData,
+  DashboardData, HotspotPlan, HotspotSession, Invoice, NetworkNode, Payment, Plan, ReportsData,
   StaffUser, SubscriberUser, Technician, Ticket, WorkOrder,
 } from "./types";
 
@@ -77,5 +77,18 @@ export const staffApi = {
     create: (data: Record<string, unknown>) => apiFetch<{ data: StaffUser }>("/api/staff/staff", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: Record<string, unknown>) => apiFetch<{ data: StaffUser }>(`/api/staff/staff/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     remove: (id: number) => apiFetch<void>(`/api/staff/staff/${id}`, { method: "DELETE" }),
+  },
+
+  hotspotPlans: {
+    list: (params: Record<string, string | undefined> = {}) => apiFetch<Collection<HotspotPlan>>(`/api/staff/hotspot-plans${qs(params)}`),
+    create: (data: Record<string, unknown>) => apiFetch<{ data: HotspotPlan }>("/api/staff/hotspot-plans", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: Record<string, unknown>) => apiFetch<{ data: HotspotPlan }>(`/api/staff/hotspot-plans/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    remove: (id: number) => apiFetch<void>(`/api/staff/hotspot-plans/${id}`, { method: "DELETE" }),
+  },
+
+  hotspotSessions: {
+    list: (params: Record<string, string | undefined> = {}) => apiFetch<Collection<HotspotSession>>(`/api/staff/hotspot-sessions${qs(params)}`),
+    create: (data: Record<string, unknown>) => apiFetch<{ data: HotspotSession }>("/api/staff/hotspot-sessions", { method: "POST", body: JSON.stringify(data) }),
+    revoke: (id: number) => apiFetch<{ data: HotspotSession }>(`/api/staff/hotspot-sessions/${id}/revoke`, { method: "POST" }),
   },
 };

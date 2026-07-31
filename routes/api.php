@@ -9,6 +9,10 @@ use App\Domain\Billing\Http\Controllers\PaymentController;
 use App\Domain\Billing\Http\Controllers\Subscriber\PayInvoiceController;
 use App\Domain\FieldOps\Http\Controllers\TechnicianController;
 use App\Domain\FieldOps\Http\Controllers\WorkOrderController;
+use App\Domain\Hotspot\Http\Controllers\HotspotPlanController as StaffHotspotPlanController;
+use App\Domain\Hotspot\Http\Controllers\HotspotSessionController;
+use App\Domain\Hotspot\Http\Controllers\Public\HotspotPlanController as PublicHotspotPlanController;
+use App\Domain\Hotspot\Http\Controllers\Public\PurchaseSessionController;
 use App\Domain\Network\Http\Controllers\DeviceController;
 use App\Domain\Network\Http\Controllers\NetworkNodeController;
 use App\Domain\Network\Http\Controllers\UsageController;
@@ -43,6 +47,12 @@ use Illuminate\Support\Facades\Route;
 Route::post('/staff/login', [StaffAuthController::class, 'login']);
 Route::post('/portal/login', [SubscriberAuthController::class, 'login']);
 
+// Public, unauthenticated — no subscriber/staff account involved. A hotspot
+// device is identified only by MAC address; anyone reaching this endpoint
+// can buy themselves a pass.
+Route::get('/hotspot/plans', [PublicHotspotPlanController::class, 'index']);
+Route::post('/hotspot/purchase', [PurchaseSessionController::class, 'store'])->middleware('throttle:20,1');
+
 Route::middleware('auth:staff')->prefix('staff')->group(function () {
     Route::post('/logout', [StaffAuthController::class, 'logout']);
     Route::get('/me', [StaffAuthController::class, 'me']);
@@ -59,6 +69,11 @@ Route::middleware('auth:staff')->prefix('staff')->group(function () {
     Route::apiResource('technicians', TechnicianController::class);
     Route::apiResource('work-orders', WorkOrderController::class);
     Route::post('work-orders/{workOrder}/dispatch', [WorkOrderController::class, 'dispatch']);
+
+    Route::apiResource('hotspot-plans', StaffHotspotPlanController::class);
+    Route::get('/hotspot-sessions', [HotspotSessionController::class, 'index']);
+    Route::post('/hotspot-sessions', [HotspotSessionController::class, 'store']);
+    Route::post('/hotspot-sessions/{hotspotSession}/revoke', [HotspotSessionController::class, 'revoke']);
 
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('staff', StaffController::class);

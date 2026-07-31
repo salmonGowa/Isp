@@ -7,6 +7,9 @@ use App\Domain\Billing\Models\Invoice;
 use App\Domain\Billing\Models\Payment;
 use App\Domain\FieldOps\Models\Technician;
 use App\Domain\FieldOps\Models\WorkOrder;
+use App\Domain\Hotspot\Enums\HotspotPlanStatus;
+use App\Domain\Hotspot\Models\HotspotPlan;
+use App\Domain\Hotspot\Models\HotspotSession;
 use App\Domain\Network\Models\ConnectedDevice;
 use App\Domain\Network\Models\DailyUsage;
 use App\Domain\Network\Models\NetworkNode;
@@ -120,5 +123,14 @@ class DatabaseSeeder extends Seeder
         }
 
         ConnectedDevice::factory(750)->recycle($usageSample)->create();
+
+        // --- Hotspot: fixed pass tiers, then a sample of sessions across them ---
+        $hotspotPlans = collect([
+            ['name' => '1 Hour', 'duration_minutes' => 60, 'price' => 0.50],
+            ['name' => '3 Hours', 'duration_minutes' => 180, 'price' => 1.50],
+            ['name' => '1 Day', 'duration_minutes' => 1440, 'price' => 3.00],
+        ])->map(fn (array $attrs) => HotspotPlan::factory()->create([...$attrs, 'status' => HotspotPlanStatus::Active]));
+
+        HotspotSession::factory(180)->recycle($hotspotPlans)->create();
     }
 }
