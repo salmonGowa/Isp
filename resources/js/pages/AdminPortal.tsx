@@ -3,7 +3,7 @@ import {
   Zap, Users, CreditCard, Router, MessageSquare, Wrench, Package, BarChart3,
   ShieldCheck, Bell, Search, ChevronRight, Plus, X, CheckCircle2, AlertTriangle,
   Activity, Signal, MapPin, Download, Play, Ban, UserPlus,
-  Edit3, Trash2, ArrowUpRight, ArrowDownRight, Server, Cable, Radio,
+  Trash2, Server, Cable, Radio,
   ClipboardList, LogOut, Home, DollarSign, FileWarning, Menu, Loader2, RefreshCcw,
 } from "lucide-react";
 import {
@@ -62,7 +62,7 @@ const STATUS_TONE: Record<string, Tone> = {
   active: "success", online: "success", paid: "success", completed: "success", resolved: "success", available: "success",
   scheduled: "info", "in-progress": "info",
   open: "warning", degraded: "warning", due: "warning", "on-job": "warning",
-  suspended: "neutral", "off-duty": "neutral", archived: "neutral",
+  suspended: "neutral", "off-duty": "neutral", archived: "neutral", cancelled: "neutral",
   overdue: "danger", offline: "danger",
 };
 
@@ -74,7 +74,7 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Active", online: "Online", paid: "Paid", completed: "Completed", resolved: "Resolved",
   available: "Available", scheduled: "Scheduled", "in-progress": "In progress", open: "Open",
   degraded: "Degraded", due: "Due", "on-job": "On job", suspended: "Suspended", "off-duty": "Off duty",
-  archived: "Archived", overdue: "Overdue", offline: "Offline",
+  archived: "Archived", overdue: "Overdue", offline: "Offline", cancelled: "Cancelled",
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -340,6 +340,7 @@ function Subscribers() {
           { value: "active", label: "Active" },
           { value: "overdue", label: "Overdue" },
           { value: "suspended", label: "Suspended" },
+          { value: "cancelled", label: "Cancelled" },
         ]} />
         <PrimaryButton size="sm" className="ml-auto" onClick={() => setAddOpen(true)}>
           <UserPlus size={14} /> Add subscriber
@@ -1110,12 +1111,11 @@ function NavList({ tab, onSelect, role }: { tab: string; onSelect: (k: string) =
   );
 }
 
-function AdminConsole() {
+function AdminConsole({ user, logout }: { user: StaffUser; logout: () => Promise<void> }) {
   const [tab, setTab] = useState("overview");
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useStaffAuth();
   const palette = useMemo(() => chartPalette(theme), [theme]);
 
   const goTo = (key: string) => { setTab(key); setMobileNavOpen(false); };
@@ -1186,7 +1186,7 @@ function AdminConsole() {
 }
 
 export default function AdminPortal() {
-  const { status, login } = useStaffAuth();
+  const { status, user, login, logout } = useStaffAuth();
 
   if (status === "loading") {
     return (
@@ -1196,7 +1196,7 @@ export default function AdminPortal() {
     );
   }
 
-  if (status === "guest") {
+  if (status === "guest" || !user) {
     return (
       <LoginScreen
         title="Admin Console"
@@ -1207,5 +1207,5 @@ export default function AdminPortal() {
     );
   }
 
-  return <AdminConsole />;
+  return <AdminConsole user={user} logout={logout} />;
 }

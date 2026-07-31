@@ -30,5 +30,11 @@ class SubscriberObserver
         if ($current === SubscriberStatus::Suspended && $previous !== SubscriberStatus::Suspended) {
             SubscriberSuspended::dispatch($subscriber);
         }
+
+        // Reuses SubscriberSuspended — dispatched for any transition where service
+        // should stop, whether non-payment suspension or voluntary cancellation.
+        if ($current === SubscriberStatus::Cancelled && $previous !== SubscriberStatus::Cancelled) {
+            SubscriberSuspended::dispatch($subscriber);
+        }
     }
 }

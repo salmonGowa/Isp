@@ -2,6 +2,7 @@
 
 namespace App\Domain\Support\Http\Controllers;
 
+use App\Domain\Support\Enums\TicketPriority;
 use App\Domain\Support\Enums\TicketStatus;
 use App\Domain\Support\Http\Requests\StoreTicketRequest;
 use App\Domain\Support\Http\Requests\UpdateTicketRequest;
@@ -30,6 +31,7 @@ class TicketController extends Controller
         $ticket = Ticket::create([
             ...$request->validated(),
             'subscriber_id' => $request->user('subscriber')?->id ?? $request->validated('subscriber_id'),
+            'priority' => $request->validated('priority') ?? TicketPriority::Medium,
             'status' => TicketStatus::Open,
         ]);
 

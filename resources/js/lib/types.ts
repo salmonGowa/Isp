@@ -14,7 +14,7 @@ export interface SubscriberUser {
   phone: string | null;
   plan_id: number | null;
   plan?: { id: number; name: string };
-  status: "active" | "suspended" | "overdue";
+  status: "active" | "suspended" | "overdue" | "cancelled";
   service_address: string;
   zone: string;
   monthly_bill: number;

@@ -21,7 +21,7 @@ class SubscriberAuthController extends Controller
 
         $request->session()->regenerate();
 
-        return new SubscriberResource(Auth::guard('subscriber')->user());
+        return new SubscriberResource(Auth::guard('subscriber')->user()->load('plan'));
     }
 
     public function logout(Request $request)

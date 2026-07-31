@@ -1,6 +1,6 @@
-import { apiFetch, qs, type Paginated } from "./api";
+import { apiFetch, qs, type Collection, type Paginated } from "./api";
 import type {
-  ConnectedDevice, Invoice, Payment, SubscriberUser, Ticket, UsageData, WifiNetwork,
+  ConnectedDevice, Invoice, Payment, Plan, SubscriberUser, Ticket, UsageData, WifiNetwork,
 } from "./types";
 
 export const portalApi = {
@@ -35,5 +35,27 @@ export const portalApi = {
     list: () => apiFetch<{ data: ConnectedDevice[] }>("/api/portal/devices"),
     update: (id: number, data: { is_paused: boolean }) =>
       apiFetch<{ data: ConnectedDevice }>(`/api/portal/devices/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  },
+
+  profile: {
+    update: (data: Partial<Pick<SubscriberUser, "name" | "email" | "phone" | "service_address">>) =>
+      apiFetch<{ data: SubscriberUser }>("/api/portal/profile", { method: "PATCH", body: JSON.stringify(data) }),
+    updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
+      apiFetch<void>("/api/portal/profile/password", { method: "PUT", body: JSON.stringify(data) }),
+  },
+
+  plans: {
+    list: () => apiFetch<Collection<Plan>>("/api/portal/plans"),
+  },
+
+  plan: {
+    change: (planId: number) =>
+      apiFetch<{ data: SubscriberUser }>("/api/portal/plan", { method: "POST", body: JSON.stringify({ plan_id: planId }) }),
+    cancel: () => apiFetch<{ data: SubscriberUser }>("/api/portal/service/cancel", { method: "POST" }),
+  },
+
+  account: {
+    delete: (currentPassword: string) =>
+      apiFetch<void>("/api/portal/account", { method: "DELETE", body: JSON.stringify({ current_password: currentPassword }) }),
   },
 };

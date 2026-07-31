@@ -14,7 +14,13 @@ use App\Domain\Network\Http\Controllers\NetworkNodeController;
 use App\Domain\Network\Http\Controllers\UsageController;
 use App\Domain\Network\Http\Controllers\WifiController;
 use App\Domain\Plans\Http\Controllers\PlanController;
+use App\Domain\Plans\Http\Controllers\Subscriber\PlanController as PortalPlanController;
 use App\Domain\Staff\Http\Controllers\StaffController;
+use App\Domain\Subscribers\Http\Controllers\Subscriber\CancelServiceController;
+use App\Domain\Subscribers\Http\Controllers\Subscriber\ChangePlanController;
+use App\Domain\Subscribers\Http\Controllers\Subscriber\DeleteAccountController;
+use App\Domain\Subscribers\Http\Controllers\Subscriber\UpdatePasswordController;
+use App\Domain\Subscribers\Http\Controllers\Subscriber\UpdateProfileController;
 use App\Domain\Subscribers\Http\Controllers\SubscriberController;
 use App\Domain\Support\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -73,4 +79,11 @@ Route::middleware('auth:subscriber')->prefix('portal')->group(function () {
     Route::post('/wifi/regenerate-password', [WifiController::class, 'regeneratePassword']);
     Route::get('/devices', [DeviceController::class, 'index']);
     Route::patch('/devices/{device}', [DeviceController::class, 'update']);
+
+    Route::patch('/profile', [UpdateProfileController::class, 'store']);
+    Route::put('/profile/password', [UpdatePasswordController::class, 'store']);
+    Route::get('/plans', [PortalPlanController::class, 'index']);
+    Route::post('/plan', [ChangePlanController::class, 'store']);
+    Route::post('/service/cancel', [CancelServiceController::class, 'store']);
+    Route::delete('/account', [DeleteAccountController::class, 'destroy']);
 });

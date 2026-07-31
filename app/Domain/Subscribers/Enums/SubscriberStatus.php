@@ -7,4 +7,5 @@ enum SubscriberStatus: string
     case Active = 'active';
     case Suspended = 'suspended';
     case Overdue = 'overdue';
+    case Cancelled = 'cancelled';
 }
