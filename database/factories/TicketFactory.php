@@ -2,18 +2,19 @@
 
 namespace Database\Factories;
 
+use App\Domain\Subscribers\Models\Subscriber;
 use App\Domain\Support\Enums\TicketPriority;
 use App\Domain\Support\Enums\TicketStatus;
-use App\Domain\Subscribers\Models\Subscriber;
+use App\Domain\Support\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<\App\Domain\Support\Models\Ticket>
+ * @extends Factory<Ticket>
  */
 class TicketFactory extends Factory
 {
-    protected $model = \App\Domain\Support\Models\Ticket::class;
+    protected $model = Ticket::class;
 
     public function definition(): array
     {
