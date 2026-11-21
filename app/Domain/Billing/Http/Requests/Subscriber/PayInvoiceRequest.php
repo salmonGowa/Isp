@@ -14,7 +14,7 @@ class PayInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reference' => ['nullable', 'string', 'max:255'],
+            'reference' => ['required', 'string', 'max:255'],
         ];
     }
 }
