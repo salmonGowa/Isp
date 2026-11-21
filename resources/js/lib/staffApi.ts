@@ -46,6 +46,9 @@ export const staffApi = {
   payments: {
     record: (invoiceId: number, data: { amount: number; reference?: string }) =>
       apiFetch<{ data: Payment }>(`/api/staff/invoices/${invoiceId}/payments`, { method: "POST", body: JSON.stringify(data) }),
+    pending: () => apiFetch<Paginated<Payment>>("/api/staff/payments?status=pending"),
+    confirm: (id: number) => apiFetch<{ data: Payment }>(`/api/staff/payments/${id}/confirm`, { method: "POST" }),
+    reject: (id: number) => apiFetch<{ data: Payment }>(`/api/staff/payments/${id}/reject`, { method: "POST" }),
   },
 
   networkNodes: {
@@ -89,6 +92,7 @@ export const staffApi = {
   hotspotSessions: {
     list: (params: Record<string, string | undefined> = {}) => apiFetch<Collection<HotspotSession>>(`/api/staff/hotspot-sessions${qs(params)}`),
     create: (data: Record<string, unknown>) => apiFetch<{ data: HotspotSession }>("/api/staff/hotspot-sessions", { method: "POST", body: JSON.stringify(data) }),
+    activate: (id: number) => apiFetch<{ data: HotspotSession }>(`/api/staff/hotspot-sessions/${id}/activate`, { method: "POST" }),
     revoke: (id: number) => apiFetch<{ data: HotspotSession }>(`/api/staff/hotspot-sessions/${id}/revoke`, { method: "POST" }),
   },
 };
