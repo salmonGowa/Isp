@@ -21,6 +21,7 @@ class HotspotSessionController extends Controller
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->string('mac_address')->isNotEmpty(), fn ($q) => $q->where('mac_address', $request->string('mac_address')))
             ->latest()
+            ->limit(500)
             ->get();
 
         return HotspotSessionResource::collection($sessions);
@@ -49,14 +50,42 @@ class HotspotSessionController extends Controller
         return new HotspotSessionResource($session->load('plan'));
     }
 
+    /**
+     * Staff verified the payment for a pending public purchase — start the
+     * pass now (full duration from activation) and authorize the device.
+     */
+    public function activate(HotspotSession $hotspotSession, HotspotAccessProviderContract $provider)
+    {
+        abort_unless($hotspotSession->status === HotspotSessionStatus::Pending, 422, 'Only pending sessions can be activated.');
+
+        $minutes = $hotspotSession->plan?->duration_minutes;
+        abort_unless($minutes, 422, 'This session\'s pass no longer exists.');
+
+        $hotspotSession->update([
+            'status' => HotspotSessionStatus::Active,
+            'starts_at' => now(),
+            'expires_at' => now()->addMinutes($minutes),
+        ]);
+
+        $provider->authorizeDevice($hotspotSession);
+
+        return new HotspotSessionResource($hotspotSession->load('plan'));
+    }
+
     public function revoke(HotspotSession $hotspotSession, HotspotAccessProviderContract $provider)
     {
+        abort_unless(in_array($hotspotSession->status, [HotspotSessionStatus::Active, HotspotSessionStatus::Pending], true), 422, 'Session is not active.');
+
+        $wasActive = $hotspotSession->status === HotspotSessionStatus::Active;
+
         $hotspotSession->update([
             'status' => HotspotSessionStatus::Revoked,
             'revoked_at' => now(),
         ]);
 
-        $provider->revokeDevice($hotspotSession);
+        if ($wasActive) {
+            $provider->revokeDevice($hotspotSession);
+        }
 
         return new HotspotSessionResource($hotspotSession->load('plan'));
     }
