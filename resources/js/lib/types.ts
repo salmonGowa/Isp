@@ -42,7 +42,10 @@ export interface Payment {
   amount: number;
   method: string;
   reference: string | null;
-  paid_at: string;
+  status: "pending" | "confirmed" | "rejected";
+  paid_at: string | null;
+  reviewed_at?: string | null;
+  invoice?: { id: number; amount: number; status: Invoice["status"]; subscriber: { id: number; name: string } | null };
 }
 
 export interface Invoice {
@@ -179,7 +182,7 @@ export interface HotspotSession {
   plan: { id: number; name: string } | null;
   amount_paid: number;
   payment_reference: string | null;
-  status: "active" | "expired" | "revoked";
+  status: "pending" | "active" | "expired" | "revoked";
   starts_at: string;
   expires_at: string;
   revoked_at: string | null;
