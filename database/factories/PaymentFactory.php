@@ -21,6 +21,7 @@ class PaymentFactory extends Factory
             'amount' => fake()->randomFloat(2, 20, 150),
             'method' => 'manual',
             'reference' => null,
+            'status' => 'confirmed',
             'paid_at' => fake()->dateTimeBetween('-6 months', 'now'),
         ];
     }
