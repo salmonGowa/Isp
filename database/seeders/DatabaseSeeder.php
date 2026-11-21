@@ -22,6 +22,7 @@ use App\Domain\Support\Models\Ticket;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -92,7 +93,8 @@ class DatabaseSeeder extends Seeder
                 'tenant_id' => $s->tenant_id,
                 'subscriber_id' => $s->id,
                 'ssid' => "{$s->name}-Home",
-                'wifi_password' => Str::password(12),
+                // Bulk insert skips the model's `encrypted` cast, so encrypt here.
+                'wifi_password' => Crypt::encryptString(Str::password(12)),
                 'password_updated_at' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
