@@ -11,8 +11,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Recurring billing run — creates the next invoice for every active
- * subscriber who doesn't already have a current, unexpired one.
+ * Recurring billing run — creates the next monthly invoice for every active
+ * subscriber whose last invoice was issued a month or more ago.
  */
 class GenerateInvoicesJob implements ShouldQueue
 {
@@ -28,7 +28,9 @@ class GenerateInvoicesJob implements ShouldQueue
                 foreach ($subscribers as $subscriber) {
                     $latestInvoice = $subscriber->invoices()->latest('issued_at')->first();
 
-                    if ($latestInvoice && $latestInvoice->due_at?->isFuture()) {
+                    // Bill once per calendar month from the last issue date. (Gating
+                    // on due_at billed every `invoice_due_days` — i.e. twice a month.)
+                    if ($latestInvoice && $latestInvoice->issued_at?->copy()->addMonthNoOverflow()->isFuture()) {
                         continue;
                     }
 
