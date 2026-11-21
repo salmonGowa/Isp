@@ -930,6 +930,7 @@ function CustomerConsole({
   const [payReference, setPayReference] = useState("");
   const [paying, setPaying] = useState(false);
   const [payDone, setPayDone] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const palette = useMemo(() => chartPalette(theme), [theme]);
@@ -940,14 +941,18 @@ function CustomerConsole({
     setPayTarget(invoice);
     setPayReference("");
     setPayDone(false);
+    setPayError(null);
   };
 
   const confirmPay = async () => {
-    if (!payTarget) return;
+    if (!payTarget || !payReference.trim()) return;
     setPaying(true);
+    setPayError(null);
     try {
-      await portalApi.invoices.pay(payTarget.id, payReference || undefined);
+      await portalApi.invoices.pay(payTarget.id, payReference.trim());
       setPayDone(true);
+    } catch (err) {
+      setPayError(apiErrorMessage(err));
     } finally {
       setPaying(false);
     }
@@ -1051,18 +1056,19 @@ function CustomerConsole({
           <>
             <ProfileRow label="Invoice" first>INV-{payTarget.id}</ProfileRow>
             <ProfileRow label="Amount"><span className="font-mono text-base font-semibold">{fmtUSD(payTarget.amount)}</span></ProfileRow>
-            <FieldLabel>Reference (optional)</FieldLabel>
+            <FieldLabel>Payment reference</FieldLabel>
             <FieldInput value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="M-Pesa code, bank ref…" />
-            <PrimaryButton className="mt-3.5 w-full" disabled={paying} onClick={confirmPay}>
-              {paying ? <Loader2 size={14} className="animate-spin" /> : `Confirm payment of ${fmtUSD(payTarget.amount)}`}
+            {payError && <div className="mt-2 text-[12.5px] font-medium text-rose-600 dark:text-rose-400">{payError}</div>}
+            <PrimaryButton className="mt-3.5 w-full" disabled={paying || !payReference.trim()} onClick={confirmPay}>
+              {paying ? <Loader2 size={14} className="animate-spin" /> : `I've paid ${fmtUSD(payTarget.amount)}`}
             </PrimaryButton>
           </>
         )}
         {payTarget && payDone && (
           <div className="flex flex-col items-center gap-2.5 py-4 text-center">
             <CheckCircle2 size={28} className="text-emerald-500" />
-            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Payment recorded</div>
-            <div className="text-[13px] text-slate-500 dark:text-slate-400">INV-{payTarget.id} is now marked as paid.</div>
+            <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Payment submitted</div>
+            <div className="text-[13px] text-slate-500 dark:text-slate-400">We'll mark INV-{payTarget.id} as paid once our billing team confirms your payment.</div>
             <PrimaryButton size="sm" onClick={() => setPayTarget(null)}>Done</PrimaryButton>
           </div>
         )}
