@@ -19,7 +19,7 @@ class NetworkNodeFactory extends Factory
     public function definition(): array
     {
         $type = fake()->randomElement(NetworkNodeType::cases());
-        $zone = fake()->randomElement(\Database\Factories\SubscriberFactory::ZONES);
+        $zone = fake()->randomElement(SubscriberFactory::ZONES);
         $n = static::$sequenceNumber++;
 
         $status = fake()->randomElement([
