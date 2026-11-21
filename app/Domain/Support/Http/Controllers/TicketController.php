@@ -21,7 +21,7 @@ class TicketController extends Controller
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->string('priority')->isNotEmpty(), fn ($q) => $q->where('priority', $request->string('priority')))
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(max($request->integer('per_page', 20), 1), 100));
 
         return TicketResource::collection($tickets);
     }
