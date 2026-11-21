@@ -15,6 +15,16 @@ class PaymentResource extends JsonResource
             'amount' => (float) $this->amount,
             'method' => $this->method,
             'reference' => $this->reference,
+            'status' => $this->status->value,
+            'invoice' => $this->whenLoaded('invoice', fn () => [
+                'id' => $this->invoice->id,
+                'amount' => (float) $this->invoice->amount,
+                'status' => $this->invoice->status->value,
+                'subscriber' => $this->invoice->relationLoaded('subscriber') && $this->invoice->subscriber
+                    ? ['id' => $this->invoice->subscriber->id, 'name' => $this->invoice->subscriber->name]
+                    : null,
+            ]),
+            'reviewed_at' => $this->reviewed_at?->toIso8601String(),
             'paid_at' => $this->paid_at?->toIso8601String(),
         ];
     }
