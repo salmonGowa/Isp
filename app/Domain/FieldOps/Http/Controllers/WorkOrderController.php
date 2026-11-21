@@ -23,7 +23,7 @@ class WorkOrderController extends Controller
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->string('type')->isNotEmpty(), fn ($q) => $q->where('type', $request->string('type')))
             ->latest('scheduled_at')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(max($request->integer('per_page', 20), 1), 100));
 
         return WorkOrderResource::collection($workOrders);
     }
