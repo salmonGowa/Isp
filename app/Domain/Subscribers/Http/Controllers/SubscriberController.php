@@ -23,7 +23,7 @@ class SubscriberController extends Controller
                     ->orWhere('email', 'like', "%{$search}%"));
             })
             ->latest()
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(max($request->integer('per_page', 20), 1), 100));
 
         return SubscriberResource::collection($subscribers);
     }
