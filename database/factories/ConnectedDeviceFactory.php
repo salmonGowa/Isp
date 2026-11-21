@@ -18,7 +18,7 @@ class ConnectedDeviceFactory extends Factory
     {
         $device = fake()->randomElement([
             ['name' => 'Living Room TV', 'type' => DeviceType::Tv],
-            ['name' => "iPhone", 'type' => DeviceType::Phone],
+            ['name' => 'iPhone', 'type' => DeviceType::Phone],
             ['name' => 'Samsung Galaxy', 'type' => DeviceType::Phone],
             ['name' => 'MacBook Pro', 'type' => DeviceType::Laptop],
             ['name' => 'Office Laptop', 'type' => DeviceType::Laptop],
