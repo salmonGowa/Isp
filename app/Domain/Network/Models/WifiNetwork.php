@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * `wifi_password` is intentionally plaintext-viewable — this simulates a
  * router's own printed/CPE-provisioned WPA key, not a platform login
- * credential, so it deliberately isn't hashed like Subscriber::password.
+ * credential, so it deliberately isn't hashed like Subscriber::password —
+ * but it is encrypted at rest so a DB dump doesn't leak every customer's key.
  */
 #[Fillable(['tenant_id', 'subscriber_id', 'ssid', 'wifi_password', 'password_updated_at'])]
 #[UseFactory(WifiNetworkFactory::class)]
@@ -26,6 +27,7 @@ class WifiNetwork extends Model
     protected function casts(): array
     {
         return [
+            'wifi_password' => 'encrypted',
             'password_updated_at' => 'datetime',
         ];
     }
