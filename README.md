@@ -1,13 +1,4 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
-
-## ISP Platform API
+# ISP Platform API
 
 Laravel 13 API backend for the ISP management platform (two separate React/TS
 SPAs, served same-origin at `/admin` and `/portal`, consume this API). MVP
@@ -26,7 +17,8 @@ served by this same app.
 | `staff` | `users` | Admin/NOC console (`/admin`) | `POST /api/staff/login` |
 | `subscriber` | `subscribers` | Customer portal (`/portal`) | `POST /api/portal/login` |
 
-Both logins take `{ "email": "...", "password": "..." }` and start a session
+Both logins are rate-limited (`throttle:login`: 5/min per email+IP, 30/min
+per IP). They take `{ "email": "...", "password": "..." }` and start a session
 (remember to hit `GET /sanctum/csrf-cookie` first, then send the
 `X-XSRF-TOKEN` header on the login POST, same as any Sanctum SPA).
 
@@ -62,6 +54,43 @@ other seeded staff/subscribers also use password `password`.
 
 Run `php artisan route:list --path=api` for the exact, current route table.
 
+### Staff roles
+
+Every staff role can **read** every list/detail endpoint (the console shows
+all tabs). **Writes** are restricted in `routes/api.php`:
+
+| Area | Roles allowed to write |
+|---|---|
+| Plans, invoices, payments, payment review, hotspot plans, reports | `admin`, `billing` |
+| Subscriber create/update | `admin`, `billing`, `support` |
+| Tickets create/update | `admin`, `support`, `noc` |
+| Network nodes, technicians, work-order create/dispatch/delete | `admin`, `noc` |
+| Work-order update (status/notes) | `admin`, `noc`, `technician` |
+| Hotspot session grant/activate/revoke | `admin`, `billing`, `noc`, `support` |
+| Deleting subscribers/invoices/tickets, staff accounts | `admin` |
+
+### Payments
+
+- **Staff** (`POST /api/staff/invoices/{id}/payments`) record *confirmed*
+  payments. Partial payments are allowed; an invoice only becomes `paid`
+  once confirmed payments cover its full amount. Overpaying or paying a
+  paid invoice returns 422.
+- **Subscribers** (`POST /api/portal/invoices/{id}/pay`, `reference`
+  required) submit a *pending* claim. It does nothing to the invoice or
+  account status until billing staff confirm it in the review queue
+  (`GET /api/staff/payments`, `POST /api/staff/payments/{id}/confirm|reject`).
+- A suspended/overdue subscriber is reactivated only once no past-due
+  invoices remain. Changing plan is blocked while anything is overdue.
+
+### Hotspot
+
+`POST /api/hotspot/purchase` records a **pending** session; the device is
+not authorized until staff verify the payment reference and call
+`POST /api/staff/hotspot-sessions/{id}/activate` (the pass duration starts
+then). Set `HOTSPOT_MAC_SIGNING_SECRET` in production and have the router's
+login page redirect to `/hotspot?mac=<MAC>&sig=<hmac_sha256(UPPERCASE_MAC, secret)>`
+so visitors can't submit someone else's MAC.
+
 ### Extension points (built as contracts, not hardcoded)
 
 - **`App\Domain\Billing\Contracts\PaymentGatewayContract`** — bound to
@@ -79,11 +108,12 @@ Run `php artisan route:list --path=api` for the exact, current route table.
 ### Background jobs
 
 - `App\Domain\Billing\Jobs\GenerateInvoicesJob` — daily at 01:00, creates
-  the next invoice for every active subscriber without a current one.
+  the next monthly invoice for every active subscriber whose last invoice
+  was issued at least a month ago.
 - `App\Domain\Billing\Jobs\SuspendOverdueSubscribersJob` — daily at 02:00,
   marks overdue invoices, moves subscribers to `overdue` then `suspended`
   after `BILLING_SUSPEND_GRACE_DAYS`. Reactivation happens automatically
-  when a payment is recorded.
+  once confirmed payments settle every past-due invoice.
 
 Both run on the `redis` queue connection. Run `php artisan schedule:list`
 to confirm registration, and `php artisan queue:work redis` to process jobs
@@ -108,60 +138,24 @@ per-request instead of from config — no new migrations needed.
 | `TENANCY_DEFAULT_ID` | default tenant id | `1` |
 | `BILLING_INVOICE_DUE_DAYS` | invoice due window | default `14` |
 | `BILLING_SUSPEND_GRACE_DAYS` | suspension grace period | default `7` |
+| `HOTSPOT_MAC_SIGNING_SECRET` | HMAC secret shared with the hotspot router | **set in production**; empty disables signature checks |
+| `HOTSPOT_PENDING_TTL_MINUTES` | how long an unconfirmed purchase blocks another for the same MAC | default `30` |
 
 ### Explicitly out of scope this pass
 
-Field ops/work orders, GIS mapping, full RBAC permission matrix (currently
-just Sanctum guards + a simple `role` column + `role:` middleware),
+GIS mapping, a fine-grained permission matrix (roles are coarse route
+groups — see above),
 reseller/partner APIs, regulatory reporting, promo codes, payment refunds,
 and the real FreeRADIUS/Stripe integrations behind the two contracts above.
 
-## About Laravel
+### Tests
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Feature tests cover billing settlement, self-pay review, the billing
+cycle, hotspot purchase/activation, plan-change guards, role access, login
+throttling and WiFi-key encryption.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+# phpunit.xml defaults to in-memory SQLite (needs pdo_sqlite). Against MySQL,
+# point at a dedicated database — RefreshDatabase wipes whatever it targets:
+DB_CONNECTION=mysql DB_DATABASE=isp_testing php artisan test
 ```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
