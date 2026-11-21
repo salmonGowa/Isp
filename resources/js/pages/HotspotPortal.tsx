@@ -8,9 +8,16 @@ import { Card, FieldLabel, FieldInput, PrimaryButton } from "../components/ui/pr
 
 const fmtUSD = (n: number) => `$${n.toFixed(2)}`;
 
+const query = new URLSearchParams(window.location.search);
+
+// The router's captive-portal redirect supplies the device MAC (and, when
+// signing is enabled, an HMAC of it as `sig`), so the visitor never has to
+// — and can't usefully — type someone else's MAC in.
 function macFromQueryString(): string {
-  return new URLSearchParams(window.location.search).get("mac") ?? "";
+  return query.get("mac") ?? "";
 }
+
+const macSignature = query.get("sig") ?? undefined;
 
 function apiErrorMessage(err: unknown, fallback = "Something went wrong. Please try again."): string {
   if (err instanceof ApiError) {
@@ -32,14 +39,15 @@ export default function HotspotPortal() {
   const plans = data?.data ?? [];
 
   const submit = async () => {
-    if (!mac.trim() || !selectedPlanId) return;
+    if (!mac.trim() || !selectedPlanId || !reference.trim()) return;
     setSubmitting(true);
     setError(null);
     try {
       const res = await hotspotApi.purchase({
         mac_address: mac.trim(),
         hotspot_plan_id: selectedPlanId,
-        payment_reference: reference || undefined,
+        payment_reference: reference.trim(),
+        signature: macSignature,
       });
       setSession(res.data);
     } catch (err) {
@@ -57,20 +65,26 @@ export default function HotspotPortal() {
             <Wifi size={20} strokeWidth={2.5} />
           </div>
           <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            {session ? "You're connected" : "Get Wi-Fi access"}
+            {session ? (session.status === "active" ? "You're connected" : "Payment received") : "Get Wi-Fi access"}
           </h1>
           <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
-            {session ? "Enjoy your pass — connected regardless of which hotspot location you're on." : "Choose a pass to get online"}
+            {session
+              ? session.status === "active"
+                ? "Enjoy your pass — connected regardless of which hotspot location you're on."
+                : "We're confirming your payment. You'll be online as soon as it's verified."
+              : "Choose a pass to get online"}
           </p>
         </div>
 
         {session ? (
           <div className="flex flex-col items-center gap-2.5 py-2 text-center">
-            <CheckCircle2 size={32} className="text-emerald-500" />
+            {session.status === "active" ? <CheckCircle2 size={32} className="text-emerald-500" /> : <Clock size={32} className="text-amber-500" />}
             <div className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{session.plan?.name}</div>
             <div className="flex items-center gap-1.5 text-[13px] text-slate-500 dark:text-slate-400">
               <Clock size={14} />
-              Connected until {new Date(session.expires_at).toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}
+              {session.status === "active"
+                ? `Connected until ${new Date(session.expires_at).toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })}`
+                : `Awaiting confirmation · ref ${session.payment_reference}`}
             </div>
             <PrimaryButton size="sm" className="mt-3" onClick={() => { setSession(null); setSelectedPlanId(null); setReference(""); }}>
               Buy another pass
@@ -86,7 +100,7 @@ export default function HotspotPortal() {
             )}
 
             <FieldLabel>Device MAC address</FieldLabel>
-            <FieldInput value={mac} onChange={(e) => setMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" />
+            <FieldInput value={mac} onChange={(e) => setMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" readOnly={!!macSignature} />
 
             <FieldLabel>Choose a pass</FieldLabel>
             {loading && (
@@ -119,12 +133,12 @@ export default function HotspotPortal() {
               </div>
             )}
 
-            <FieldLabel>Payment reference (optional)</FieldLabel>
+            <FieldLabel>Payment reference</FieldLabel>
             <FieldInput value={reference} onChange={(e) => setReference(e.target.value)} placeholder="M-Pesa code, receipt #…" />
 
             <PrimaryButton
               className="mt-4 w-full"
-              disabled={submitting || !mac.trim() || !selectedPlanId}
+              disabled={submitting || !mac.trim() || !selectedPlanId || !reference.trim()}
               onClick={submit}
             >
               {submitting ? <Loader2 size={15} className="animate-spin" /> : "Connect me"}
