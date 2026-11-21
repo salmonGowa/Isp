@@ -65,6 +65,7 @@ const STATUS_TONE: Record<string, Tone> = {
   open: "warning", degraded: "warning", due: "warning", "on-job": "warning",
   suspended: "neutral", "off-duty": "neutral", archived: "neutral", cancelled: "neutral", expired: "neutral",
   overdue: "danger", offline: "danger", revoked: "danger",
+  pending: "warning", confirmed: "success", rejected: "danger",
 };
 
 const PRIORITY_TONE: Record<string, Tone> = {
@@ -77,6 +78,7 @@ const STATUS_LABEL: Record<string, string> = {
   degraded: "Degraded", due: "Due", "on-job": "On job", suspended: "Suspended", "off-duty": "Off duty",
   archived: "Archived", overdue: "Overdue", offline: "Offline", cancelled: "Cancelled",
   expired: "Expired", revoked: "Revoked",
+  pending: "Pending", confirmed: "Confirmed", rejected: "Rejected",
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -481,17 +483,38 @@ function BillingAdmin({ palette }: { palette: ReturnType<typeof chartPalette> })
     setPayTarget(invoice);
     setPayAmount(String(invoice.amount));
     setPayReference("");
+    setPayError(null);
   };
+
+  const [payError, setPayError] = useState<string | null>(null);
 
   const submitPayment = async () => {
     if (!payTarget) return;
     setPaying(true);
+    setPayError(null);
     try {
       await staffApi.payments.record(payTarget.id, { amount: parseFloat(payAmount), reference: payReference || undefined });
       setPayTarget(null);
       reload();
+    } catch (err) {
+      setPayError(err instanceof ApiError ? err.message : "Could not record payment.");
     } finally {
       setPaying(false);
+    }
+  };
+
+  const pendingRes = useApiResource(() => staffApi.payments.pending(), []);
+  const pendingPayments = pendingRes.data?.data ?? [];
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
+
+  const review = async (id: number, action: "confirm" | "reject") => {
+    setReviewingId(id);
+    try {
+      await staffApi.payments[action](id);
+      pendingRes.reload();
+      reload();
+    } finally {
+      setReviewingId(null);
     }
   };
 
@@ -518,6 +541,31 @@ function BillingAdmin({ palette }: { palette: ReturnType<typeof chartPalette> })
           </ResponsiveContainer>
         </div>
       </Card>
+
+      {pendingPayments.length > 0 && (
+        <Card>
+          <CardHead
+            eyebrow={`Payments awaiting confirmation (${pendingRes.data?.meta.total ?? pendingPayments.length})`}
+            action={<div className="text-[11px] text-slate-500 dark:text-slate-400">verify the reference before confirming</div>}
+          />
+          <div className="mt-2 overflow-x-auto">
+            <div className="min-w-[560px]">
+              {pendingPayments.map((p) => (
+                <div className="grid grid-cols-[0.9fr_1.3fr_0.9fr_1.3fr_1.2fr] items-center gap-2.5 border-t border-slate-100 px-2.5 py-2.5 text-[12.5px] first:border-t-0 dark:border-slate-800" key={p.id}>
+                  <div className="font-semibold text-slate-900 dark:text-slate-100">INV-{p.invoice_id}</div>
+                  <div className="text-slate-600 dark:text-slate-300">{p.invoice?.subscriber?.name ?? "—"}</div>
+                  <div className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{fmtUSD(p.amount)}</div>
+                  <div className="font-mono text-xs text-slate-600 dark:text-slate-300">{p.reference ?? "—"}</div>
+                  <div className="flex justify-end gap-1.5">
+                    <GhostButton size="xs" disabled={reviewingId === p.id} onClick={() => review(p.id, "confirm")}><CheckCircle2 size={12} /> Confirm</GhostButton>
+                    <GhostButton size="xs" disabled={reviewingId === p.id} onClick={() => review(p.id, "reject")}><Ban size={12} /> Reject</GhostButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHead
@@ -568,6 +616,7 @@ function BillingAdmin({ palette }: { palette: ReturnType<typeof chartPalette> })
         <FieldInput type="number" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
         <FieldLabel>Reference (optional)</FieldLabel>
         <FieldInput value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="M-Pesa code, bank ref…" />
+        {payError && <div className="mt-2 text-[12.5px] font-medium text-rose-600 dark:text-rose-400">{payError}</div>}
         <PrimaryButton className="mt-3.5 w-full" disabled={paying} onClick={submitPayment}>
           {paying ? <Loader2 size={14} className="animate-spin" /> : "Confirm payment"}
         </PrimaryButton>
@@ -998,6 +1047,11 @@ function HotspotAdmin() {
     }
   };
 
+  const activate = async (id: number) => {
+    await staffApi.hotspotSessions.activate(id);
+    reloadSessions();
+  };
+
   const revoke = async (id: number) => {
     await staffApi.hotspotSessions.revoke(id);
     reloadSessions();
@@ -1056,7 +1110,7 @@ function HotspotAdmin() {
 
       <Card>
         <CardHead
-          eyebrow="Active sessions"
+          eyebrow="Sessions"
           action={<GhostButton size="sm" onClick={() => setGrantOpen(true)}><UserPlus size={14} /> Grant session</GhostButton>}
         />
         {sessionsError && !sessionsLoading && <ErrorBlock message={sessionsError} onRetry={reloadSessions} />}
@@ -1072,10 +1126,15 @@ function HotspotAdmin() {
                   <div className="font-mono text-slate-800 dark:text-slate-100">{s.mac_address}</div>
                   <div className="text-slate-600 dark:text-slate-300">{s.plan?.name ?? "—"}</div>
                   <div className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{fmtUSD(s.amount_paid)}</div>
-                  <div className="text-slate-600 dark:text-slate-300">{new Date(s.expires_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                  <div className="text-slate-600 dark:text-slate-300">
+                    {s.status === "pending"
+                      ? <span className="font-mono text-xs">ref {s.payment_reference ?? "—"}</span>
+                      : new Date(s.expires_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
                   <StatusBadge status={s.status} />
-                  <div>
-                    {s.status === "active" && <GhostButton size="xs" onClick={() => revoke(s.id)}><Ban size={12} /> Revoke</GhostButton>}
+                  <div className="flex gap-1">
+                    {s.status === "pending" && <GhostButton size="xs" onClick={() => activate(s.id)}><CheckCircle2 size={12} /> Activate</GhostButton>}
+                    {(s.status === "active" || s.status === "pending") && <GhostButton size="xs" onClick={() => revoke(s.id)}><Ban size={12} /> {s.status === "pending" ? "Reject" : "Revoke"}</GhostButton>}
                   </div>
                 </div>
               ))}
