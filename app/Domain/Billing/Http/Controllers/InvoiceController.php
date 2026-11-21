@@ -18,7 +18,7 @@ class InvoiceController extends Controller
             ->when($request->string('status')->isNotEmpty(), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->integer('subscriber_id'), fn ($q, $id) => $q->where('subscriber_id', $id))
             ->latest('issued_at')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(max($request->integer('per_page', 20), 1), 100));
 
         return InvoiceResource::collection($invoices);
     }
@@ -54,7 +54,7 @@ class InvoiceController extends Controller
         $invoices = Invoice::query()
             ->where('subscriber_id', $request->user('subscriber')->id)
             ->latest('issued_at')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min(max($request->integer('per_page', 20), 1), 100));
 
         return InvoiceResource::collection($invoices);
     }
