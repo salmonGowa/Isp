@@ -5,6 +5,6 @@ export const hotspotApi = {
   plans: {
     list: () => apiFetch<Collection<HotspotPlan>>("/api/hotspot/plans"),
   },
-  purchase: (data: { mac_address: string; hotspot_plan_id: number; payment_reference?: string }) =>
+  purchase: (data: { mac_address: string; hotspot_plan_id: number; payment_reference: string; signature?: string }) =>
     apiFetch<{ data: HotspotSession }>("/api/hotspot/purchase", { method: "POST", body: JSON.stringify(data) }),
 };
